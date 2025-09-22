@@ -1,0 +1,180 @@
+{% extends 'base.html' %}   <!-- MUST be first line -->
+
+{% block title %}Chat List - Django Chat{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.05));
+        border: none;
+        border-radius: 20px;
+        padding: 30px;
+    }
+    .badge-custom {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 10px;
+        min-width: 18px;
+        text-align: center;
+        font-weight: bold;
+    }
+    .stats-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        background: #6b5b95;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+    .offline-indicator, .online-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 4px;
+    }
+    .offline-indicator { background: #ccc; }
+    .online-indicator { background: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Welcome Card -->
+    <div class="col-12">
+        <div class="welcome-card">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h2 class="mb-2">Welcome back, {{ user.username }}! 👋</h2>
+                    <p class="mb-0 text-muted">Start a conversation or continue where you left off</p>
+                </div>
+                <div class="col-md-4">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="stats-card">
+                                <div class="fw-bold">{{ users|length }}</div>
+                                <small>Available Users</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stats-card">
+                                <div class="fw-bold">{{ chat_rooms|length }}</div>
+                                <small>Conversations</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Sidebar and Recent Conversations -->
+    <div class="col-12 mt-4">
+        <div class="chat-container">
+            <div class="row g-0">
+                <!-- Left Sidebar - Start New Chat -->
+                <div class="col-md-5 chat-sidebar">
+                    <div class="p-4">
+                        <div class="new-chat-section">
+                            <h5 class="section-title"><i class="fas fa-user-plus"></i>Start New Chat</h5>
+                            <input type="text" class="form-control search-box" placeholder="Search users..." id="userSearch">
+                            <div id="usersList">
+                                {% for user_item in users %}
+                                <div class="user-item" data-username="{{ user_item.username|lower }}">
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar">{{ user_item.username|first|upper }}</div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong>{{ user_item.username }}</strong>
+                                                    <span class="user-status" data-user-id="{{ user_item.id }}">
+                                                        <span class="offline-indicator"></span>
+                                                    </span>
+                                                </div>
+                                                <a href="{% url 'start_chat' user_item.id %}" class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-comment me-1"></i>Chat
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="empty-state text-center text-muted mt-3">
+                                    <i class="fas fa-user-friends fa-2x"></i>
+                                    <h6>No users available</h6>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content - Recent Conversations -->
+                <div class="col-md-7">
+                    <div class="p-4">
+                        <h5 class="section-title"><i class="fas fa-history"></i>Recent Conversations</h5>
+                        {% if chat_rooms %}
+                        <div class="conversations-list">
+                            {% for room in chat_rooms %}
+                                {% if room.user1 == user %}
+                                    {% with other_user=room.user2 %}
+                                        {% include 'chat_room_item.html' with other_user=other_user room=room %}
+                                    {% endwith %}
+                                {% else %}
+                                    {% with other_user=room.user1 %}
+                                        {% include 'chat_room_item.html' with other_user=other_user room=room %}
+                                    {% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state text-center text-muted">
+                            <i class="fas fa-comments fa-2x"></i>
+                            <h6>No conversations yet</h6>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('userSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const userItems = document.querySelectorAll('#usersList .user-item');
+    userItems.forEach(item => {
+        const username = item.getAttribute('data-username');
+        item.style.display = username.includes(searchTerm) ? 'block' : 'none';
+    });
+});
+
+function updateUserStatuses() {
+    document.querySelectorAll('.user-status').forEach(status => {
+        const indicator = status.querySelector('.offline-indicator, .online-indicator');
+        const textSpan = status.querySelector('small');
+        if (Math.random() > 0.7) {
+            indicator.className = 'online-indicator';
+            if (textSpan) textSpan.textContent = 'Online';
+        } else {
+            indicator.className = 'offline-indicator';
+            if (textSpan) textSpan.textContent = 'Offline';
+        }
+    });
+}
+updateUserStatuses();
+setInterval(updateUserStatuses, 10000);
+</script>
+{% endblock %}
